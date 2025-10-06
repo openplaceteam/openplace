@@ -8,3 +8,9 @@ dist/
 node_modules/
 backups/
 docs/
+
+# Scripts de deploy y gestión del servidor
+deploy-with-key.sh
+auto-backup.sh
+manage.sh
+restore.sh
