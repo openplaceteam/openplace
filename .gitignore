@@ -6,3 +6,5 @@
 *.log
 dist/
 node_modules/
+backups/
+docs/

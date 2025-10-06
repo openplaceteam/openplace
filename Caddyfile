@@ -1,4 +1,3 @@
-http://localhost:8000, https://localhost:8080 {
-	tls internal
+:8000, :8080 {
 	reverse_proxy {$BACKEND_HOST:localhost}:{$BACKEND_PORT:3000}
 }

@@ -6,6 +6,8 @@ services:
     environment:
       - MARIADB_DATABASE=openplace
       - MARIADB_ROOT_PASSWORD=password
+    volumes:
+      - db_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
       interval: 10s
@@ -14,10 +16,15 @@ services:
   app:
     image: node:22-alpine
     env_file: ./.env
+    ports:
+      - 3000:3000
     volumes:
       - .:/app
+      - app_files:/app/files
+      - /app/node_modules
     working_dir: /app
     command: sh -c "
+      apk add --no-cache curl &&
       npm install &&
       npx prisma migrate deploy &&
       npx prisma generate &&
@@ -29,25 +36,13 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
-      retries: 10
-      start_period: 40s
-  caddy:
-    image: caddy:latest
-    ports:
-      - 80:8000
-      - 443:8080
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - ./frontend:/srv/frontend
-    environment:
-      - BACKEND_HOST=app
-      - BACKEND_PORT=3000
-    depends_on:
-      - app
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 60s
+
+volumes:
+  db_data:
+    driver: local
+  app_files:
+    driver: local

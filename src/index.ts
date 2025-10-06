@@ -88,8 +88,9 @@ app.use(sirv("./frontend", {
 	dev: isDev
 }));
 
-const port = Number(process.env["BACKEND_PORT"]) || 3000;
+const port = Number(process.env["PORT"]) || Number(process.env["BACKEND_PORT"]) || 3000;
+const host = process.env["HOST"] || "0.0.0.0";
 
-app.listen(port, () => {
-	console.log(`Server running on port ${port}`);
+app.listen(port, host, () => {
+	console.log(`Server running on ${host}:${port}`);
 });
