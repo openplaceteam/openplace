@@ -2,7 +2,7 @@
 
 <p align="center"><strong>Translations</strong></p>
 <p align="center">
-	<a href="../translations/ph/README.md"><img src="https://flagcdn.com/256x192/ph.png" width="48" alt="Filipino Flag"></a>
+	<a href="../translations/ph/BASAHIN.md"><img src="https://flagcdn.com/256x192/ph.png" width="48" alt="Filipino Flag"></a>
     <a href="../translations/id/README.md"><img src="https://flagcdn.com/256x192/id.png" width="48" alt="Indonesia Flag"></a>
     <a href="translations/fr/LISEZMOI.md"><img src="https://flagcdn.com/256x192/fr.png" width="48" alt="French Flag"></a>
   &nbsp;
