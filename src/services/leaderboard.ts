@@ -50,10 +50,6 @@ export class LeaderboardService {
 					cleaned++;
 				}
 			}
-			// if (cleaned > 0) {
-			// 	const timestamp = new Date().toISOString();
-			// 	console.log(`[${timestamp}] Leaderboard cache cleanup: removed ${cleaned} expired entries`);
-			// }
 		}, 30_000);
 	}
 
@@ -99,32 +95,33 @@ export class LeaderboardService {
 				});
 			}
 
-			// Update or create entries
+			// Update or create entries using updateMany to bypass the read-modify-write race condition
 			for (const entry of entries) {
-				// Check if entry exists
-				const existing = await prisma.leaderboardView.findFirst({
+				const updateResult = await prisma.leaderboardView.updateMany({
 					where: {
 						type: entry.type,
 						mode: entry.mode,
 						entityId: entry.entityId
+					},
+					data: {
+						rank: entry.rank,
+						pixelsPainted: entry.pixelsPainted
 					}
 				});
 
-				// eslint-disable-next-line unicorn/prefer-ternary
-				if (existing) {
-					// Update existing entry
-					await prisma.leaderboardView.update({
-						where: { id: existing.id },
-						data: {
-							rank: entry.rank,
-							pixelsPainted: entry.pixelsPainted
+				// If count is 0, the entry does not exist yet
+				if (updateResult.count === 0) {
+					try {
+						await prisma.leaderboardView.create({
+							data: entry
+						});
+					} catch (error: any) {
+						// P2002 is Prisma's Unique Constraint error. 
+						// If another thread created it in the exact same millisecond, just ignore it safely.
+						if (error.code !== "P2002") {
+							throw error;
 						}
-					});
-				} else {
-					// Create new entry
-					await prisma.leaderboardView.create({
-						data: entry
-					});
+					}
 				}
 			}
 		});
@@ -135,14 +132,16 @@ export class LeaderboardService {
 			try {
 				return await operation();
 			} catch (error: any) {
-				// Check if it's a deadlock, write conflict, or timeout error
+				// Check if it's a deadlock, write conflict, timeout error, OR Error 1020
 				const isRetryableError = (
 					error.code === "P2034" ||
 					error.code === "P2024" ||
 					error.message?.includes("deadlock") ||
 					error.message?.includes("write conflict") ||
 					error.message?.includes("timeout") ||
-					error.message?.includes("connection")
+					error.message?.includes("connection") ||
+					error.message?.includes("1020") || // Added MySQL 1020 Catch
+					error.message?.includes("Record has changed since last read") // Added fallback
 				);
 
 				if (isRetryableError && attempt < maxRetries) {
@@ -710,8 +709,6 @@ export class LeaderboardService {
 				}
 			}
 
-			// console.log(`[${timestamp}] Leaderboard batch completed: ${batch.length} processed (queue: ${this.updateQueue.size})`);
-
 			if (this.updateQueue.size > 0) {
 				setTimeout(() => this.processUpdateQueue(), 500);
 			}
@@ -1093,9 +1090,6 @@ export class LeaderboardService {
 			});
 
 			await Promise.race([warmupPromise, timeoutPromise]);
-
-			// const duration = Date.now() - startTime;
-			// console.log(`[LeaderboardService] Warmup completed in ${duration}ms`);
 		} catch (error) {
 			const duration = Date.now() - startTime;
 			console.error(`[LeaderboardService] Warmup failed after ${duration}ms:`, error);
@@ -1140,4 +1134,3 @@ export class LeaderboardService {
 }
 
 export const leaderboardService = new LeaderboardService();
-

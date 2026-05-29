@@ -7,8 +7,12 @@ import inquirer from "inquirer";
 import { COUNTRIES } from "../src/utils/country";
 import chalk from "chalk";
 
-const BATCH_SIZE = Number(process.env.REGION_BATCH_SIZE ?? 4000);  // lines per DB batch
-const CONCURRENCY = Number(process.env.REGION_CONCURRENCY ?? 32);  // concurrent upserts within a batch
+(BigInt.prototype as any).toJSON = function () {
+	return this.toString();
+};
+
+const BATCH_SIZE = Number(process.env.REGION_BATCH_SIZE ?? 10000);  // lines per DB batch
+const CONCURRENCY = Number(process.env.REGION_CONCURRENCY ?? 32);  // concurrent upserts within a batch (kept for backwards compatibility but unused in bulk insert)
 const PROGRESS_REFRESH_MS = Number(process.env.PROGRESS_REFRESH_MS ?? 120); // progress redraw throttle
 
 const prisma = new PrismaClient({
@@ -20,15 +24,15 @@ const yes = process.argv.includes("--yes");
 async function prompt(message: string, defaultValue = false) {
 	if (yes) return defaultValue;
 	return (
-    await inquirer.prompt([
-    	{
-    		type: "confirm",
-    		name: "answer",
-    		message,
-    		default: defaultValue
-    	}
-    ])
-  ).answer as boolean;
+		await inquirer.prompt([
+			{
+				type: "confirm",
+				name: "answer",
+				message,
+				default: defaultValue
+			}
+		])
+	).answer as boolean;
 }
 
 function makeProgressPrinter(prefix = "Downloading: ") {
@@ -75,9 +79,9 @@ async function downloadToUint8Array(url: string): Promise<Uint8Array[]> {
 
 function nowStr() {
 	return new Date()
-		.toISOString()
-		.replace("T", " ")
-		.replace("Z", "");
+	.toISOString()
+	.replace("T", " ")
+	.replace("Z", "");
 }
 
 function limit(concurrency: number) {
@@ -87,7 +91,7 @@ function limit(concurrency: number) {
 		running--;
 		if (queue.length > 0) queue.shift()!();
 	};
-	return async <T>(fn: () => Promise<T>): Promise<T> =>
+		return async <T>(fn: () => Promise<T>): Promise<T> =>
 		new Promise<T>((resolve, reject) => {
 			const run = async () => {
 				running++;
@@ -134,16 +138,16 @@ try {
 
 	await prisma.$transaction(
 		baseUsers.map((user) =>
-			prisma.user.upsert({
-				where: { id: user.id },
-				update: {},
-				create: {
-					...user,
-					country: "XX",
-					passwordHash: "",
-					banned: true
-				}
-			})
+		prisma.user.upsert({
+			where: { id: user.id },
+			update: {},
+			create: {
+				...user,
+				country: "XX",
+				passwordHash: "",
+				banned: true
+			}
+		})
 		)
 	);
 
@@ -152,17 +156,17 @@ try {
 	console.log(
 		chalk.gray(
 			hasRegionData
-				? "You already have region data. You can choose to update it:"
-				: "Choose the region data you would like to use:"
+			? "You already have region data. You can choose to update it:"
+			: "Choose the region data you would like to use:"
 		)
 	);
 
 	let regionSelection:
-		| null
-		| "cities500"
-		| "cities1000"
-		| "cities5000"
-		| "allCountries" = null;
+	| null
+	| "cities500"
+	| "cities1000"
+	| "cities5000"
+	| "allCountries" = null;
 
 	if (!yes) {
 		const regionChoice = await inquirer.prompt([
@@ -173,23 +177,23 @@ try {
 				choices: [
 					{
 						name: `Skip (${hasRegionData ? "keep existing data" : "don’t use region data"})`,
-						value: null
+												   value: null
 					},
 					{
 						name: "Cities with population > 500 (224,000+ entries, recommended)",
-						value: "cities500"
+												   value: "cities500"
 					},
 					{
 						name: "Cities with population > 1000 (162,000+ entries)",
-						value: "cities1000"
+												   value: "cities1000"
 					},
 					{
 						name: "Cities with population > 5000 (66,000+ entries)",
-						value: "cities5000"
+												   value: "cities5000"
 					},
 					{
 						name: "Pin-point landmarks (13 million+ entries, not recommended)",
-						value: "allCountries"
+												   value: "allCountries"
 					}
 				]
 			}
@@ -225,68 +229,63 @@ try {
 		let buffer = "";
 		let batch: string[] = [];
 		const ignoredCountries = new Set<string>();
-		const runLimited = limit(CONCURRENCY);
 
 		const flushBatch = async () => {
 			if (batch.length === 0) return;
 
 			const lines = batch;
 			batch = [];
+			const dataToInsert: any[] = [];
 
-			await Promise.all(
-				lines.map((line) =>
-					runLimited(async () => {
-						const trimmed = line.trim();
-						if (!trimmed) return;
+			for (const line of lines) {
+				const trimmed = line.trim();
+				if (!trimmed) continue;
 
-						const parts = trimmed.split("\t");
-						const id = parts[0];
-						const name = parts[1];
-						const latitude = parts[4];
-						const longitude = parts[5];
-						const countryCode = parts[8];
-						const population = parts[14];
+				const parts = trimmed.split("\t");
+				const id = parts[0];
+				const name = parts[1];
+				const latitude = parts[4];
+				const longitude = parts[5];
+				const countryCode = parts[8];
+				const population = parts[14];
 
-						if (!id || !name || !latitude || !longitude || !countryCode || !population) return;
+				if (!id || !name || !latitude || !longitude || !countryCode || !population) continue;
 
-						if (ignoredCountries.has(countryCode)) return;
+				if (ignoredCountries.has(countryCode)) continue;
 
-						const countryId = countryCodesToIDs.get(countryCode);
-						if (!countryId) {
-							ignoredCountries.add(countryCode);
-							console.warn(
-								chalk.yellow(`[${nowStr()}] Skipping unknown country:`),
-								countryCode
-							);
-							return;
-						}
+				const countryId = countryCodesToIDs.get(countryCode);
+				if (!countryId) {
+					ignoredCountries.add(countryCode);
+					console.warn(
+						chalk.yellow(`[${nowStr()}] Skipping unknown country:`),
+								 countryCode
+					);
+					continue;
+				}
 
-						const data = {
-							cityId: Number(id),
-							name,
-							number: 1,
-							countryId,
-							latitude: Number(latitude),
-							longitude: Number(longitude),
-							population: Number(population)
-						};
+				const parsedPopulation = population.trim() !== '' ? BigInt(population) : null;
 
-						try {
-							await prisma.region.upsert({
-								where: {
-									cityId: data.cityId
-								},
-								create: data,
-								update: data
-							});
-						} catch (error) {
-							if ((error as { code: string }).code !== "P2002") {
-								throw error;
-							}
-						}
-					})
-				)
-			);
+				dataToInsert.push({
+					cityId: Number(id),
+								  name,
+								  number: 1,
+								  countryId,
+								  latitude: Number(latitude),
+								  longitude: Number(longitude),
+								  population: parsedPopulation
+				});
+			}
+
+			if (dataToInsert.length > 0) {
+				try {
+					await prisma.region.createMany({
+						data: dataToInsert,
+						skipDuplicates: true
+					});
+				} catch (error) {
+					console.error("Batch insert failed:", error);
+				}
+			}
 
 			addedCount += lines.length;
 			process.stdout.write(
