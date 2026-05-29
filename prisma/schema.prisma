@@ -164,7 +164,7 @@ model Region {
   countryId  Int
   latitude   Float
   longitude  Float
-  population Int    @default(0)
+  population  BigInt    @default(0)
 
   @@unique([latitude, longitude])
   @@index([latitude])
