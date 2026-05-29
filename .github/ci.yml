@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest 
+    steps:
+    
+    - name: the code or smth
+      uses: actions/checkout@v4
+
+    - name: nodejs
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+        cache: 'npm'
+
+    - name: install packages
+      run: npm install
+
+    - name: generate prisma
+      run: npx prisma generate
+      
+    - name: build and test
+      run: |
+        npm run build --if-present
+        npm test --if-present
