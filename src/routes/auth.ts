@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import { COOLDOWN_MS, UserService } from "../services/user.js";
 import { AuthenticatedRequest, BanReason, UserRole } from "../types/index.js";
 import { AuthService, AuthToken } from "../services/auth.js";
+import { FingerprintService, isValidFingerprint } from "../services/fingerprint.js";
 import { rateLimiter } from "../services/rate-limiter.js";
 import { discordBot } from "../discord/bot.js";
 
@@ -19,13 +20,14 @@ const PASSWORD_RESET_RATE_LIMIT_MS = Number.parseInt(process.env["PASSWORD_RESET
 
 const userService = new UserService(prisma);
 const authService = new AuthService(prisma);
+const fingerprintService = new FingerprintService(prisma, userService);
 
 // TODO: Refactor into service
 // eslint-disable-next-line max-lines-per-function
 export default function (app: App) {
 	app.post("/login", async (req, res) => {
 		try {
-			const { username, password } = req.body;
+			const { username, password, fingerprint } = req.body;
 
 			if (!username || !password) {
 				return res.status(400)
@@ -75,6 +77,14 @@ export default function (app: App) {
 					.json({ error: `You have been banned. Reason: ${reason}` });
 			}
 
+			if (isValidFingerprint(fingerprint)) {
+				await fingerprintService.record(user.id, fingerprint);
+				if (await fingerprintService.checkAndBan(user.id, fingerprint)) {
+					return res.status(403)
+						.json({ error: "You have been banned. Reason: Multi-accounting" });
+				}
+			}
+
 			if (req.ip) {
 				await userService.setLastIP(user.id, req.ip);
 			}
@@ -112,7 +122,7 @@ export default function (app: App) {
 
 	app.post("/register", async (req, res) => {
 		try {
-			const { username, password } = req.body;
+			const { username, password, fingerprint } = req.body;
 
 			if (!username || !password) {
 				return res.status(400)
@@ -183,6 +193,14 @@ export default function (app: App) {
 					chargesLastUpdatedAt: new Date()
 				}
 			});
+
+			if (isValidFingerprint(fingerprint)) {
+				await fingerprintService.record(user.id, fingerprint);
+				if (await fingerprintService.checkAndBan(user.id, fingerprint)) {
+					return res.status(403)
+						.json({ error: "You have been banned. Reason: Multi-accounting" });
+				}
+			}
 
 			const session = await prisma.session.create({
 				data: {

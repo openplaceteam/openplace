@@ -14,6 +14,7 @@
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",
     "@fontsource-variable/pixelify-sans": "^5.2.7",
+    "@fingerprintjs/fingerprintjs": "^4.6.2",
     "@primeuix/themes": "^1.2.5",
     "bootstrap": "^5.3.8",
     "maplibre-gl": "^5.19.0",

@@ -210,7 +210,7 @@ export class UserService {
 		}
 		await this.prisma.$transaction([
 			// this.prisma.pixel.deleteMany({ where: { user: { id: userId } } }), // kinda sus
-			// this.prisma.userFingerprint.deleteMany({ where: { userId } }), // xD
+			this.prisma.userFingerprint.deleteMany({ where: { userId } }),
 			// this.prisma.userRegionStats.deleteMany({ where: { userId } }),
 			// this.prisma.userRegionStatsDaily.deleteMany({ where: { userId } }),
 			this.prisma.profilePicture.deleteMany({ where: { userId } }),

@@ -14,6 +14,7 @@ interface TilePixels {
 
 export function usePaint() {
 	const config = useRuntimeConfig();
+	const { getVisitorId } = useFingerprint();
 
 	const getColorIndex = (rgbaString: string): number => {
 		// TODO: This is terrible
@@ -68,6 +69,7 @@ export function usePaint() {
 	const submitPixels = async (pixels: PaintPixel[]) => {
 		const tileGroups = groupPixelsByTile(pixels);
 		const results: { tileX: number; tileY: number; painted: number }[] = [];
+		const fingerprint = await getVisitorId();
 
 		for (const group of tileGroups) {
 			const colors: number[] = [];
@@ -91,7 +93,7 @@ export function usePaint() {
 						colors,
 						coords,
 						t: "turnstile-disabled",
-						fp: ""
+						fp: fingerprint ?? ""
 					},
 					credentials: "include"
 				});

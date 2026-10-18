@@ -82,6 +82,7 @@ definePageMeta({
 const router = useRouter();
 const route = useRoute();
 const { fetchUserProfile } = useUserProfile();
+const { getVisitorId } = useFingerprint();
 
 const loading = ref(false);
 const username = ref("");
@@ -131,7 +132,8 @@ const submit = async (e: Event) => {
 			credentials: "include",
 			body: {
 				username: username.value,
-				password: password.value
+				password: password.value,
+				fingerprint: await getVisitorId()
 			}
 		});
 

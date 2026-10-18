@@ -1,6 +1,15 @@
 packages:
   - frontend2
 
+allowBuilds:
+  '@parcel/watcher': set this to true or false
+  '@prisma/client': set this to true or false
+  '@prisma/engines': set this to true or false
+  esbuild: set this to true or false
+  prisma: set this to true or false
+  sharp: set this to true or false
+  unrs-resolver: set this to true or false
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - '@prisma/client'

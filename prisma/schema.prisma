@@ -54,6 +54,7 @@ model User {
   regionStatsDaily       UserRegionStatsDaily[]
   notifications          Notification[]         @relation("NotificationUser")
   sentNotifications      Notification[]         @relation("NotificationSendingUser")
+  fingerprints           UserFingerprint[]
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
 
@@ -193,6 +194,18 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model UserFingerprint {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now()) @updatedAt
+
+  @@unique([userId, fingerprint])
+  @@index([fingerprint])
 }
 
 model Ticket {

@@ -8,6 +8,7 @@ import { createErrorResponse, HTTP_STATUS } from "../utils/response.js";
 import { prisma } from "../config/database.js";
 import { UserService } from "../services/user.js";
 import { AuthenticatedRequest } from "../types/index.js";
+import { FingerprintService, isValidFingerprint } from "../services/fingerprint.js";
 import { rateLimiter } from "../services/rate-limiter.js";
 
 const PAINT_RATE_LIMIT_ATTEMPTS = Number.parseInt(process.env["PAINT_RATE_LIMIT_ATTEMPTS"] ?? "") || 60;
@@ -15,6 +16,7 @@ const PAINT_RATE_LIMIT_MS = Number.parseInt(process.env["PAINT_RATE_LIMIT_MS"] ?
 
 const pixelService = new PixelService(prisma);
 const userService = new UserService(prisma);
+const fingerprintService = new FingerprintService(prisma, userService);
 
 export default function (app: App) {
 	app.get("/:season/tile/random", async (req, res) => {
@@ -142,6 +144,17 @@ export default function (app: App) {
 					console.log(`[${date.toISOString()}] [${req.ip}] ${userRow.name}#${userRow.id} attempted to paint ${colors.length} pixels at tile (${tileX}, ${tileY}) while timed out.`);
 					return res.status(451)
 						.json({ err: reason, suspension: "timeout" });
+				}
+			}
+
+			const { fp } = req.body;
+			if (isValidFingerprint(fp)) {
+				await fingerprintService.record(req.user!.id, fp);
+				if (await fingerprintService.checkAndBan(req.user!.id, fp)) {
+					const date = new Date();
+					console.log(`[${date.toISOString()}] [${req.ip}] user#${req.user!.id} was banned for multi-accounting while painting at tile (${tileX}, ${tileY})`);
+					return res.status(451)
+						.json({ err: "multi-accounting", suspension: "ban" });
 				}
 			}
 
